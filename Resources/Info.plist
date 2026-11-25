@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
+    <key>CFBundleExecutable</key><string>PhotoBridge</string>
+    <key>CFBundleIdentifier</key><string>app.photobridge.mac</string>
+    <key>CFBundleName</key><string>PhotoBridge</string>
+    <key>CFBundleDisplayName</key><string>PhotoBridge</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>1.4.0</string>
+    <key>CFBundleVersion</key><string>5</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
+    <key>LSMinimumSystemVersion</key><string>14.0</string>
+    <key>LSApplicationCategoryType</key><string>public.app-category.photography</string>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>NSPrincipalClass</key><string>NSApplication</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>PhotoBridge compares your Photos library with images on your external drive and copies originals to it.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>PhotoBridge adds images from your external drive into your Photos library.</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>PhotoBridge reads and writes images on your external SSD.</string>
+</dict>
+</plist>
