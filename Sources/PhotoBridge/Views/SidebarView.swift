@@ -5,9 +5,13 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: Binding<CompareFilter?>(
-            get: { model.isBrowsingDevice ? nil : model.filter },
-            set: { if let f = $0 { model.closeDevice(); model.filter = f } }
+            // While an Unwanted category or the iPhone is shown, no Compare row is highlighted, so clicking
+            // any row (even the same one) fires and clears that category.
+            get: { model.isBrowsingDevice || model.junkFilter != nil ? nil : model.filter },
+            set: { if let f = $0 { model.closeDevice(); model.junkFilter = nil; model.filter = f } }
         )) {
+            ShowAllRow()
+
             Section("Sources") {
                 PhotosSourceRow()
                 DiskSourceRow()
@@ -456,5 +460,39 @@ struct LibraryCheckView: View {
             Text(value.formatted()).monospacedDigit().fontWeight(bold ? .semibold : .regular)
                 .gridColumnAlignment(.trailing)
         }
+    }
+}
+
+/// Always-visible "All Images" button at the top of the sidebar: clears every filter in one click.
+private struct ShowAllRow: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let active = !model.hasActiveFilters && !model.isBrowsingDevice
+        Button {
+            model.showAllImages()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "photo.stack.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 28, height: 28)
+                    .background(Color.accentColor.gradient, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("All Images").fontWeight(.semibold)
+                    Text(active ? "Showing everything" : "Clear filters and show everything")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(model.items.count.formatted())
+                    .font(.caption.weight(.medium)).monospacedDigit().foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 4).padding(.horizontal, 4)
+            .background(active ? Color.accentColor.opacity(0.14) : .clear,
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Show every photo and video (clears Unwanted, People, media and search filters)")
     }
 }

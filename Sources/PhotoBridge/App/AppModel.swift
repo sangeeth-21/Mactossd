@@ -93,10 +93,32 @@ final class AppModel {
     var deviceSelectionSummary: DeviceSizeSummary { DeviceSizeSummary.of(selectedDeviceFiles) }
 
     /// Free space on the drive that holds the SSD folder.
-    var diskFreeBytes: Int64? {
-        guard let folder = diskFolder, FileManager.default.fileExists(atPath: folder.path) else { return nil }
-        let v = try? folder.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey, .volumeAvailableCapacityKey])
-        return v?.volumeAvailableCapacityForImportantUsage ?? v?.volumeAvailableCapacity.map(Int64.init)
+    /// Capacity of the drive holding the SSD folder. Refreshed after scans, copies, deletes and (un)mounts.
+    private(set) var diskStorage: DiskStorage?
+    var diskFreeBytes: Int64? { diskStorage?.free }
+    /// Total size of all media PhotoBridge found in the SSD folder.
+    var diskMediaBytes: Int64 { diskFiles.reduce(0) { $0 + $1.fileSize } }
+
+    func refreshDiskStorage() {
+        diskStorage = diskFolder.flatMap(DiskStorage.read)
+    }
+
+    // MARK: Show everything
+
+    var hasActiveFilters: Bool {
+        filter != .all || junkFilter != nil || !selectedPeople.isEmpty || mediaFilter != .all
+            || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// Clears every filter (compare, unwanted, people, media, search) and leaves the iPhone view.
+    func showAllImages() {
+        if isBrowsingDevice { closeDevice() }
+        junkFilter = nil
+        selectedPeople = []
+        mediaFilter = .all
+        searchText = ""
+        filter = .all
+        applyFilters()
     }
 
     // MARK: Select mode
@@ -177,6 +199,7 @@ final class AppModel {
     }
 
     func start() {
+        refreshDiskStorage()
         guard !started else { return }
         started = true
         if photosAccessGranted { loadPhotos() }
@@ -190,6 +213,7 @@ final class AppModel {
     }
 
     private func volumesChanged() {
+        refreshDiskStorage()
         volumes = DiskScanner.externalVolumes()
         if let folder = diskFolder {
             let available = FileManager.default.fileExists(atPath: folder.path)
@@ -251,6 +275,7 @@ final class AppModel {
     }
 
     func setDiskFolder(_ url: URL) {
+        defer { refreshDiskStorage() }
         diskFolder = url
         defaults.set(url.path, forKey: Keys.folder)
         diskFiles = []
@@ -280,6 +305,7 @@ final class AppModel {
                 guard !Task.isCancelled else { return }
                 diskFiles = files
                 diskLoaded = true
+                refreshDiskStorage()
                 diskProgress = nil
                 await rematch()
             } catch is CancellationError {
@@ -784,6 +810,7 @@ final class AppModel {
             }
 
             removeDeleted(photoIDs: deletedPhotos, filePaths: trashed)
+            refreshDiskStorage()
             activity = nil
             activityTask = nil
             var parts: [String] = []
@@ -836,6 +863,7 @@ final class AppModel {
     }
 
     private func finishActivity(verb: String, destination: String, errors: [String]) {
+        refreshDiskStorage()
         let done = activity?.completed ?? 0
         let cancelled = activityTask?.isCancelled ?? false
         activity = nil
@@ -1190,6 +1218,7 @@ extension AppModel {
     }
 
     private func finishDeviceActivity(verb: String, destination: String, errors: [String]) {
+        refreshDiskStorage()
         let done = activity?.completed ?? 0
         activity = nil
         activityTask = nil

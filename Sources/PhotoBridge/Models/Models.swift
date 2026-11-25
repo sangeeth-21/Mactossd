@@ -393,3 +393,31 @@ struct LibraryStats: Equatable, Sendable {
     var limitedAccess = false
     var total: Int { photos + videos }
 }
+
+// MARK: - SSD capacity
+
+struct DiskStorage: Equatable {
+    let name: String
+    let format: String
+    let total: Int64
+    let free: Int64
+    var used: Int64 { max(0, total - free) }
+    var usedFraction: Double { total > 0 ? Double(used) / Double(total) : 0 }
+
+    /// Reads capacity for the volume containing `url`.
+    /// NOTE: `volumeAvailableCapacityForImportantUsage` returns 0 on ExFAT/FAT/NTFS external drives,
+    /// so it is only used when it reports a real value; otherwise the plain available capacity is used
+    /// (this is what Finder and `df` show).
+    static func read(_ url: URL) -> DiskStorage? {
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let keys: Set<URLResourceKey> = [.volumeNameKey, .volumeLocalizedFormatDescriptionKey, .volumeTotalCapacityKey,
+                                         .volumeAvailableCapacityKey, .volumeAvailableCapacityForImportantUsageKey]
+        guard let v = try? url.resourceValues(forKeys: keys), let total = v.volumeTotalCapacity, total > 0 else { return nil }
+        let plain = Int64(v.volumeAvailableCapacity ?? 0)
+        let important = v.volumeAvailableCapacityForImportantUsage ?? 0
+        let free = important > 0 ? important : plain
+        return DiskStorage(name: v.volumeName ?? url.lastPathComponent,
+                           format: v.volumeLocalizedFormatDescription ?? "",
+                           total: Int64(total), free: min(free, Int64(total)))
+    }
+}

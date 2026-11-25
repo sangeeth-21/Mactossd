@@ -163,7 +163,10 @@ struct BrowserView: View {
                 EmptyFilterView()
             }
         } else {
-            PhotoGridView()
+            VStack(spacing: 0) {
+                ActiveFiltersBar()
+                PhotoGridView()
+            }
         }
     }
 }
@@ -345,5 +348,67 @@ private struct StepCard: View {
         .frame(width: 250, height: 170)
         .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.separator))
+    }
+}
+
+/// Shows which filters are active above the grid, each removable, plus "Show All Images".
+struct ActiveFiltersBar: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if model.hasActiveFilters {
+            HStack(spacing: 8) {
+                Image(systemName: "line.3.horizontal.decrease.circle.fill").foregroundStyle(Color.accentColor)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        if model.filter != .all {
+                            chip(model.filter.title, model.filter.systemImage) { model.filter = .all }
+                        }
+                        if let junk = model.junkFilter {
+                            chip(junk.title, junk.systemImage) { model.junkFilter = nil }
+                        }
+                        if !model.selectedPeople.isEmpty {
+                            let names = model.people.filter { model.selectedPeople.contains($0.id) }.map(\.name)
+                            chip(names.prefix(2).joined(separator: ", ") + (names.count > 2 ? " +\(names.count - 2)" : ""),
+                                 "person.2.fill") { model.selectedPeople = [] }
+                        }
+                        if model.mediaFilter != .all {
+                            chip(model.mediaFilter.title, model.mediaFilter.systemImage) { model.mediaFilter = .all }
+                        }
+                        let q = model.searchText.trimmingCharacters(in: .whitespaces)
+                        if !q.isEmpty {
+                            chip("“\(q)”", "magnifyingglass") { model.searchText = "" }
+                        }
+                    }
+                }
+                Spacer(minLength: 8)
+                Button {
+                    model.showAllImages()
+                } label: {
+                    Label("Show All Images", systemImage: "photo.stack")
+                }
+                .controlSize(.small)
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(.bar)
+            .overlay(alignment: .bottom) { Divider() }
+        }
+    }
+
+    private func chip(_ title: String, _ icon: String, remove: @escaping () -> Void) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon).font(.caption)
+            Text(title).font(.caption.weight(.medium)).lineLimit(1)
+            Button(action: remove) {
+                Image(systemName: "xmark.circle.fill").font(.caption)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Remove this filter")
+        }
+        .padding(.leading, 8).padding(.trailing, 5).padding(.vertical, 4)
+        .background(Color.accentColor.opacity(0.13), in: Capsule())
     }
 }

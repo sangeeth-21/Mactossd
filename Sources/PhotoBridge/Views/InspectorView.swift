@@ -316,6 +316,8 @@ struct ViewSummaryView: View {
                            bytes: sum.total.bytes, unknown: sum.unknownSize,
                            subtitle: "\(sum.total.count.formatted()) images · \(Format.dateRange(sum.earliest, sum.latest))")
 
+                SSDStorageBox()
+
                 GroupBox {
                     VStack(spacing: 8) {
                         BucketRow(filter: .both, bucket: sum.both)
@@ -496,5 +498,66 @@ private struct DuplicateRow: View {
         case .photosOnly: "In Photos only"
         case .diskOnly: copy.file.map { ($0.url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath } ?? "On SSD"
         }
+    }
+}
+
+/// Right-side "SSD Storage" box: drive name/format, used vs free (as Finder shows it), and how much
+/// of it is the media in the chosen folder.
+struct SSDStorageBox: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        GroupBox {
+            if let folder = model.diskFolder {
+                if let st = model.diskStorage {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(Format.bytes(st.free))
+                                .font(.system(size: 20, weight: .bold, design: .rounded)).monospacedDigit()
+                            Text("free").foregroundStyle(.secondary)
+                            Spacer()
+                            Text("of \(Format.bytes(st.total))").foregroundStyle(.secondary).monospacedDigit()
+                        }
+                        ProgressView(value: st.usedFraction)
+                            .tint(st.usedFraction > 0.9 ? .red : st.usedFraction > 0.75 ? .orange : .purple)
+                        HStack {
+                            Label("\(Format.bytes(st.used)) used", systemImage: "circle.fill")
+                                .foregroundStyle(.purple)
+                            Spacer()
+                            Text("\(Int((st.usedFraction * 100).rounded()))% full").monospacedDigit()
+                        }
+                        .font(.caption)
+                        Divider()
+                        row("Drive", st.format.isEmpty ? st.name : "\(st.name) · \(st.format)")
+                        row("Folder", (folder.path as NSString).abbreviatingWithTildeInPath)
+                        row("Photos & videos in folder",
+                            "\(model.diskFiles.count.formatted()) · \(Format.bytes(model.diskMediaBytes))")
+                    }
+                } else {
+                    Label("The SSD isn't connected.", systemImage: "externaldrive.badge.xmark")
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text("Choose an SSD folder to see its storage.").foregroundStyle(.secondary)
+            }
+        } label: {
+            HStack {
+                Label("SSD Storage", systemImage: "externaldrive.fill").foregroundStyle(.purple)
+                Spacer()
+                Button { model.refreshDiskStorage() } label: { Image(systemName: "arrow.clockwise") }
+                    .buttonStyle(.borderless)
+                    .help("Refresh storage")
+            }
+        }
+        .onAppear { model.refreshDiskStorage() }
+    }
+
+    private func row(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label).foregroundStyle(.secondary)
+            Spacer()
+            Text(value).multilineTextAlignment(.trailing).lineLimit(2).truncationMode(.middle)
+        }
+        .font(.caption)
     }
 }
